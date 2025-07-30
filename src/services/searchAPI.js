@@ -80,12 +80,12 @@ const searchAPI = {
 
   // Get search history
   getSearchHistory: async () => {
-    return api.get('/search/history-with-stats');
+    return api.get('/search/history');  // No limit - fetch all searches
   },
 
   // Get search history with statistics
   getSearchHistoryWithStats: async () => {
-    return api.get('/search/history-with-stats');
+    return api.get('/search/history-with-stats');  // No limit - fetch all searches
   },
 
   // Get specific search results

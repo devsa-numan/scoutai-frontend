@@ -6,6 +6,7 @@ import store from './store';
 import { getCurrentUser } from './store/slices/authSlice';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import ListManagement from './pages/ListManagement';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 // App component with Redux integration
@@ -34,6 +35,16 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* List Management Routes */}
+        <Route 
+          path="/list-management/:searchId/:listType" 
+          element={
+            <ProtectedRoute>
+              <ListManagement />
             </ProtectedRoute>
           } 
         />

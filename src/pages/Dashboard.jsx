@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { logoutUser } from '../store/slices/authSlice';
-import { executeSearch, getSearchHistory, clearError, clearSearchResults, parseQuery } from '../store/slices/searchSlice';
+import { executeSearch, clearError, clearSearchResults, parseQuery } from '../store/slices/searchSlice';
+import { setSidebarVisible } from '../store/slices/uiSlice';
 import CandidatesList from './CandidatesList';
+import { Sidebar } from '../components';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
@@ -14,11 +15,13 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [isReady, setIsReady] = useState(false);
-  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [editableTags, setEditableTags] = useState([]);
   const [lastAddedTagId, setLastAddedTagId] = useState(null);
   const [showCandidates, setShowCandidates] = useState(false);
   const [candidates, setCandidates] = useState([]);
+  
+  // Get sidebar state from global store
+  const { sidebarVisible } = useSelector((state) => state.ui);
 
   // Clear any existing search results on component mount
   useEffect(() => {
@@ -27,12 +30,7 @@ const Dashboard = () => {
     setCandidates([]);
   }, [dispatch]);
 
-  // Load search history when component mounts
-  useEffect(() => {
-    dispatch(getSearchHistory()).catch(error => {
-      console.error('Error loading search history:', error);
-    });
-  }, [dispatch]);
+
 
   // Watch for parsedFilters changes to update isReady state and set editable tags
   useEffect(() => {
@@ -79,22 +77,7 @@ const Dashboard = () => {
   //   }
   // }, [dispatch, historyLoaded]);
 
-  const handleLogout = () => {
-    dispatch(logoutUser());
-    navigate('/login');
-  };
 
-  const handleNewChat = () => {
-    setActiveTab('search');
-    setSearchQuery('');
-    setIsReady(false);
-    setEditableTags([]);
-    setShowCandidates(false);
-    setCandidates([]);
-    dispatch(clearSearchResults());
-    // Load search history when user clicks New chat
-    dispatch(getSearchHistory());
-  };
 
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
@@ -110,12 +93,21 @@ const Dashboard = () => {
           setIsReady(true);
         }
       } else {
-        // Second step: Execute the search
+                // Second step: Execute the search
         const searchResult = await dispatch(executeSearch(searchQuery));
         if (searchResult.payload) {
-          // Show candidates after successful search
-          setShowCandidates(true);
-          setCandidates(searchResult.payload.data?.candidates || []);
+          // Get the search ID from the response
+          const searchId = searchResult.payload.data?.searchId || searchResult.payload.data?.id;
+          console.log('Search completed, search ID:', searchId);
+          
+          // Navigate to the long list for this search
+          if (searchId) {
+            navigate(`/list-management/${searchId}/long-list`);
+          } else {
+            // Fallback: show candidates in dashboard
+            setShowCandidates(true);
+            setCandidates(searchResult.payload.data?.candidates || []);
+          }
         }
         setSearchQuery('');
         setIsReady(false);
@@ -182,142 +174,26 @@ const Dashboard = () => {
     }
   }, [lastAddedTagId, editableTags]);
 
-  const handleHistoryClick = (query) => {
-    setSearchQuery(query);
-    setIsReady(false);
-    setEditableTags([]);
-    setShowCandidates(false);
-    setCandidates([]);
-    dispatch(clearSearchResults());
-  };
 
-  const toggleSidebar = () => {
-    setSidebarVisible(!sidebarVisible);
-  };
 
-  // Ensure searchHistory is an array
-  const safeSearchHistory = Array.isArray(searchHistory) ? searchHistory : [];
+
 
   return (
     <div className="min-h-screen bg-white flex">
    
 
       {/* Left Sidebar */}
-      <div className={`fixed left-0 h-full bg-white pt-2 transition-all duration-300 ease-in-out z-40 overflow-y-auto ${
-        sidebarVisible ? 'w-64' : 'w-16'
-      }`}>
-        <div className={`${sidebarVisible ? 'px-4 pb-4' : 'px-2 pb-4'}`}>
-          {/* Campaign Dashboard */}
-          <div className='mb-5' style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            <img src="/scout-ai-logo1.png" alt="Scout AI Logo" className="h-6" />
-            <button 
-              onClick={toggleSidebar}
-              className="p-1 hover:bg-gray-100 rounded"
-            >
-              <img src="/hideShow.svg" alt="Hide Show" className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* Campaign Dashboard Section */}
-          <div className={`${sidebarVisible ? 'block' : 'hidden'}`}>
-            <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '7px',backgroundColor:'#F1F1F1',padding:'4px',borderRadius:'5.31px' }}>
-              <img src="/compaignDashboard.svg" alt="Campaign Dashboard" className="h-[16.49px] w-[17px]" /> &nbsp;
-              <p className='text-[#1B1B1B] text-[14.33px] font-medium'>Campaign Dashboard</p>
-            </div>
-          </div>
-
-          {/* Collapsed Campaign Dashboard Label */}
-          <div className={`${sidebarVisible ? 'hidden' : 'block'}`}>
-            <div className="relative">
-              <div className="flex justify-center mb-2">
-                <img src="/compaignDashboard.svg" alt="Campaign Dashboard" className="h-5 w-5" />
-              </div>
-              <div className="absolute left-full top-0 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
-                Campaign Dashboard
-              </div>
-            </div>
-          </div>
-
-          {/* Prompts Section */}
-          <div className={`${sidebarVisible ? 'block' : 'hidden'} mb-6 mt-8`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <img src="/aisvg.svg" alt="AI Icon" className="w-4 h-4" />
-                <span className="text-sm font-bold font-medium">Prompts</span>
-              </div>
-              <img src="/writing.svg" alt="Writing" className="w-6 h-6" />
-            </div>
-
-            {/* New Chat */}
-            <button 
-              className={`w-full flex items-center space-x-3 px-2 py-1 rounded-lg text-left mb-1.5 bg-[#F1F1F1] `}
-              onClick={handleNewChat}
-            >
-              <span className="font-medium">New chat</span>
-            </button>
-
-            {/* Search History */}
-            <div className="space-y-1 max-h-96 overflow-y-auto">
-              {isLoading && safeSearchHistory.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-400">
-                  Loading history...
-                </div>
-              ) : safeSearchHistory.length > 0 ? (
-                safeSearchHistory.map((search, index) => (
-                  <button
-                    key={search.id || index}
-                    onClick={() => handleHistoryClick(search.query || search)}
-                    className="w-full text-left px-1 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded truncate"
-                    title={search.query || search} // Show full query on hover
-                  >
-                    {search.shortPrompt || search.query || search}
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-sm text-gray-400 italic">
-                  No search history yet
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Campaign Section */}
-          <div className={`${sidebarVisible ? 'block' : 'hidden'} mb-6`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <img src="/briefcase.svg" alt="Briefcase" className="w-4 h-4" />
-                <span className="text-sm font-bold font-medium">Campaign</span>
-              </div>
-            </div>
-            <button 
-              className={`w-full flex items-center space-x-3 px-2 py-1 rounded-lg text-left bg-[#F1F1F1] `}
-              onClick={() => setActiveTab('dashboard')}
-            >
-              <span className="font-medium">Campaign Details</span>
-            </button>
-          </div>
-
-          {/* Collapsed Prompts Icon */}
-          <div className={`${sidebarVisible ? 'hidden' : 'block'} mt-8`}>
-            <div className="flex justify-center mb-2">
-              <img src="/aisvg.svg" alt="Prompts" className="h-5 w-5" />
-            </div>
-          </div>
-
-          {/* Collapsed Toggle Button */}
-          <div className={`${sidebarVisible ? 'hidden' : 'block'} mt-8`}>
-            <button 
-              onClick={toggleSidebar}
-              className="w-full flex justify-center p-2 hover:bg-gray-100 rounded"
-              title="Expand sidebar"
-            >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+      <Sidebar 
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        setSearchQuery={setSearchQuery}
+        setIsReady={setIsReady}
+        setEditableTags={setEditableTags}
+        setShowCandidates={setShowCandidates}
+        setCandidates={setCandidates}
+        onSidebarToggle={(visible) => dispatch(setSidebarVisible(visible))}
+        currentSearchId={null}
+      />
 
       {/* Main Content Area */}
       <div className={`flex-1 pt-12 transition-all duration-300 ease-in-out ${
@@ -342,25 +218,37 @@ const Dashboard = () => {
               <div className="space-y-1">
                 <button 
                   className="w-full flex items-center space-x-3 px-2 py-1 rounded-lg text-left bg-gray-800 text-white"
-                  onClick={() => setActiveTab('longList')}
+                  onClick={() => {
+                    // This will be handled by the ListManagement component
+                    console.log('Long List button clicked in dashboard');
+                  }}
                 >
                   <span className="font-medium">Long List</span>
                 </button>
                 <button 
                   className="w-full flex items-center space-x-3 px-2 py-1 rounded-lg text-left text-gray-600 hover:bg-gray-50"
-                  onClick={() => setActiveTab('shortList')}
+                  onClick={() => {
+                    // This will be handled by the ListManagement component
+                    console.log('Short List button clicked in dashboard');
+                  }}
                 >
                   <span className="font-medium">Short List</span>
                 </button>
                 <button 
                   className="w-full flex items-center space-x-3 px-2 py-1 rounded-lg text-left text-gray-600 hover:bg-gray-50"
-                  onClick={() => setActiveTab('rejectedList')}
+                  onClick={() => {
+                    // This will be handled by the ListManagement component
+                    console.log('Rejected List button clicked in dashboard');
+                  }}
                 >
                   <span className="font-medium">Rejected List</span>
                 </button>
                 <button 
                   className="w-full flex items-center space-x-3 px-2 py-1 rounded-lg text-left text-gray-600 hover:bg-gray-50"
-                  onClick={() => setActiveTab('goldList')}
+                  onClick={() => {
+                    // This will be handled by the ListManagement component
+                    console.log('Gold List button clicked in dashboard');
+                  }}
                 >
                   <span className="font-medium">Gold List</span>
                 </button>
@@ -444,7 +332,7 @@ const Dashboard = () => {
                           {/* Prompt Section */}
                           <div className="mb-4 flex flex-row" >
                             <span className='text-sm font-medium text-gray-1000'>Prompt:</span>
-                            <p className="text-sm font-medium text-gray-600 ml-3 font-family-sans">{searchQuery}</p>
+                            <p className="text-sm font-medium text-gray-600 ml-3">{searchQuery}</p>
                           </div>
                           
                           {/* Filters Section */}
@@ -517,24 +405,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {/* Search Results Summary */}
-              {searchResults && (
-                <div className="mt-6">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <p className="text-sm font-medium text-green-800">
-                        Search completed! Found {searchResults.totalResults || 0} candidates.
-                      </p>
-                    </div>
-                    <p className="text-sm text-green-700 mt-1">
-                      Check the sidebar lists to view your candidates.
-                    </p>
-                  </div>
-                </div>
-              )}
+
             </div>
           </div>
         )}
@@ -568,6 +439,7 @@ const Dashboard = () => {
             candidates={candidates} 
             searchQuery={searchQuery}
             onBackToSearch={handleBackToSearch}
+            onCandidatesUpdate={setCandidates}
           />
         )}
       </div>
